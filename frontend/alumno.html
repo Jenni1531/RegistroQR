@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credencial Digital QR - Alumno</title>
+    <link href="vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
+    <link href="css/sb-admin-2.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-primary shadow mb-4">
+        <div class="container">
+            <span class="navbar-brand font-weight-bold"><i class="fas fa-id-card mr-2"></i>Credencial Digital QR</span>
+            <button onclick="cerrarSesion()" class="btn btn-light btn-sm font-weight-bold text-primary">Cerrar Sesión</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card shadow border-bottom-primary text-center p-4">
+                    <h4 class="font-weight-bold text-primary mb-2" id="nombreAlumno">Cargando...</h4>
+                    <p class="mb-1">Número de Control: <span class="badge badge-primary p-2" id="numControl">-</span></p>
+                    <p class="text-muted mb-4" id="grupoAlumno">Grupo: -</p>
+
+                    <div class="mb-4">
+                        <img id="imgQr" src="" alt="Código QR del Alumno" class="img-fluid border p-2 rounded" style="max-width: 240px;">
+                    </div>
+
+                    <a id="btnDescargar" href="#" download="Mi_Codigo_QR.png" class="btn btn-success font-weight-bold">
+                        <i class="fas fa-download mr-1"></i> Descargar mi Código QR
+                    </a>
+                    <p class="text-muted small mt-3 mb-0">Este QR es permanente. Puedes volver a entrar y descargarlo cuando lo necesites.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "http://localhost:8080/api";
+        const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
+
+        if (!sesion || sesion.rol !== "ALUMNO") {
+            window.location.href = "login.html";
+        } else {
+            document.getElementById("nombreAlumno").textContent = sesion.nombreCompleto || sesion.nombre;
+            document.getElementById("numControl").textContent = sesion.numeroControl;
+            document.getElementById("grupoAlumno").textContent = `Grupo y Turno: ${sesion.grupo || "Asignado"}`;
+
+            const urlQr = `${API_BASE}/qr/${sesion.codigoQrToken}`;
+            document.getElementById("imgQr").src = urlQr;
+            document.getElementById("btnDescargar").href = urlQr;
+        }
+
+        function cerrarSesion() {
+            localStorage.removeItem("usuarioSesion");
+            window.location.href = "login.html";
+        }
+    </script>
+</body>
+</html>

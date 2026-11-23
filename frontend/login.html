@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión - Control de Asistencia QR</title>
+    <link href="vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
+    <link href="css/sb-admin-2.min.css" rel="stylesheet">
+</head>
+<body class="bg-gradient-primary">
+    <div class="container">
+        <div class="row justify-content-center mt-5">
+            <div class="col-xl-5 col-lg-6 col-md-8">
+                <div class="card o-hidden border-0 shadow-lg my-5">
+                    <div class="card-body p-5">
+                        <div class="text-center mb-4">
+                            <i class="fas fa-qrcode fa-3x text-primary mb-2"></i>
+                            <h1 class="h4 text-gray-900 font-weight-bold">Registro de Asistencia QR</h1>
+                            <p class="text-muted small">Ingresa con tu Número de Control o usuario Administrador</p>
+                        </div>
+
+                        <div id="alertaError" class="alert alert-danger d-none" role="alert"></div>
+
+                        <form id="formLogin">
+                            <div class="form-group">
+                                <input type="text" id="numeroControl" class="form-control form-control-user" placeholder="Número de Control o Usuario (Ej. ADMIN01)" required autofocus>
+                            </div>
+                            <div class="form-group">
+                                <input type="password" id="password" class="form-control form-control-user" placeholder="Contraseña" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-user btn-block font-weight-bold">
+                                Iniciar Sesión
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "http://localhost:8080/api";
+
+        document.getElementById("formLogin").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const numeroControl = document.getElementById("numeroControl").value.trim();
+            const password = document.getElementById("password").value.trim();
+            const alerta = document.getElementById("alertaError");
+            alerta.classList.add("d-none");
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ numeroControl, password })
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alerta.textContent = data.mensaje || "Credenciales incorrectas.";
+                    alerta.classList.remove("d-none");
+                    return;
+                }
+
+                localStorage.setItem("usuarioSesion", JSON.stringify(data));
+                window.location.href = data.rol === "ADMIN" ? "admin.html" : "alumno.html";
+            } catch (err) {
+                alerta.textContent = "No se pudo conectar con el servidor Spring Boot (puerto 8080).";
+                alerta.classList.remove("d-none");
+            }
+        });
+    </script>
+</body>
+</html>
