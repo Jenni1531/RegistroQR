@@ -29,7 +29,7 @@
         <div id="content-wrapper" class="d-flex flex-column">
             <div id="content" class="p-4">
                 <div class="d-sm-flex align-items-center justify-content-between mb-4">
-                    <h1 class="h3 mb-0 text-gray-800">Panel Principal y Escáner QR</h1>
+                    <h1 class="h3 mb-0 text-gray-800">Panel de escaner Escáner QR</h1>
                     <span class="badge badge-success p-2"><i class="fas fa-plug"></i> Escáner Activo</span>
                 </div>
 
@@ -111,7 +111,7 @@
     </div>
 
     <script>
-        const API_BASE = "http://localhost:8080/api";
+        const API_BASE = `http://${window.location.hostname}:8080/api`;
         const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
         if (!sesion || sesion.rol !== "ADMIN") {
             window.location.href = "login.html";
@@ -188,7 +188,7 @@
         }
 
         async function cargarDashboard() {
-            const res = await fetch(`${API_BASE}/asistencias/dashboard`);
+            const res = await fetch(`${API_BASE}/asistencias/dashboard`, { cache: "no-store" });
             const data = await res.json();
             document.getElementById("totalAlumnos").textContent = data.totalAlumnosRegistrados;
             document.getElementById("asistieronHoy").textContent = data.asistieronHoy;
@@ -213,6 +213,7 @@
         }
 
         cargarDashboard();
+        setInterval(cargarDashboard, 1500);
     </script>
 </body>
 </html>
