@@ -57,26 +57,29 @@ public class AsistenciaController {
         nueva.setEstado(escaneosHoy == 0 ? "ENTRADA" : "SALIDA");
         asistenciaRepository.save(nueva);
 
-        return ResponseEntity.ok(Map.of(
-            "mensaje", "Registro exitoso (" + nueva.getEstado() + ")",
-            "alumno", alumno.getNombre() + " " + alumno.getApellidos(),
-            "numeroControl", alumno.getNumeroControl(),
-            "grupo", alumno.getGrupo().getNombreGrupo(),
-            "hora", nueva.getHoraEntrada().toString()
-        ));
+      return ResponseEntity.ok(Map.of(
+        "mensaje", "Registro exitoso (" + nueva.getEstado() + ")",
+        "idAlumno", alumno.getIdAlumno(),
+        "alumno", (alumno.getNombre() + " " + alumno.getApellidos()).trim(),
+        "numeroControl", alumno.getNumeroControl(),
+        "grupo", alumno.getGrupo().getNombreGrupo(),
+        "hora", nueva.getHoraEntrada().toString()
+    ));
     }
 
+  
     @PostMapping("/alumnos")
     public ResponseEntity<?> registrarAlumno(@RequestBody Map<String, String> datos) {
-        String numeroControl = datos.get("numeroControl").trim();
-        String nombre = datos.get("nombre").trim();
-        String apellidos = datos.get("apellidos").trim();
+        String nombreCompleto = datos.get("nombre").trim();
         String nombreGrupo = datos.getOrDefault("grupo", "1A").trim();
 
-        if (usuarioRepository.findByNumeroControl(numeroControl).isPresent()) {
-            return ResponseEntity.status(409).body(Map.of("mensaje", "Ese numero de control ya esta registrado"));
-        }
-
+        
+        int anioActual = LocalDate.now().getYear();
+        int siguienteId = alumnoRepository.findAll().stream()
+                .mapToInt(Alumno::getIdAlumno)
+                .max()
+                .orElse(0) + 1;
+        String idTexto = String.format("%d%03d", anioActual, siguienteId);
         Grupo grupo = grupoRepository.findAll().stream()
                 .filter(g -> g.getNombreGrupo().equalsIgnoreCase(nombreGrupo))
                 .findFirst()
@@ -89,25 +92,48 @@ public class AsistenciaController {
                 });
 
         Usuario usuario = new Usuario();
-        usuario.setNumeroControl(numeroControl);
-        usuario.setPasswordHash(numeroControl);
+        usuario.setNumeroControl(idTexto);
+        usuario.setPasswordHash(idTexto);
         usuario.setRol("ALUMNO");
         usuario = usuarioRepository.save(usuario);
 
         Alumno alumno = new Alumno();
         alumno.setUsuario(usuario);
         alumno.setGrupo(grupo);
-        alumno.setNumeroControl(numeroControl);
-        alumno.setNombre(nombre);
-        alumno.setApellidos(apellidos);
-        alumno.setCodigoQrToken("QR-" + numeroControl);
+        alumno.setNumeroControl(idTexto);
+        alumno.setNombre(nombreCompleto);
+        alumno.setApellidos("");
+        alumno.setCodigoQrToken("QR-" + idTexto);
         alumnoRepository.save(alumno);
 
-        return ResponseEntity.ok(Map.of(
-            "mensaje", "Alumno registrado. Su usuario y contrasena inicial es: " + numeroControl,
+       return ResponseEntity.ok(Map.of(
+            "mensaje", "Alumno con matricula: " + idTexto + " (QR-" + idTexto + ")",
             "alumno", alumno
         ));
     }
+    @DeleteMapping("/alumnos/{id}")
+    public ResponseEntity<?> eliminarAlumno(@PathVariable Integer id) {
+        Optional<Alumno> alumnoOpt = alumnoRepository.findById(id);
+        if (alumnoOpt.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of("mensaje", "Alumno no encontrado"));
+        }
+
+        Alumno alumno = alumnoOpt.get();
+        Usuario usuario = alumno.getUsuario();
+
+    
+        List<Asistencia> asistencias = asistenciaRepository.findByAlumno(alumno);
+        asistenciaRepository.deleteAll(asistencias);
+
+        
+        alumnoRepository.delete(alumno);
+        if (usuario != null) {
+            usuarioRepository.delete(usuario);
+        }
+
+        return ResponseEntity.ok(Map.of("mensaje", "Alumno eliminado correctamente"));
+    }
+
 
 @GetMapping("/dashboard")
     public ResponseEntity<?> obtenerDashboardAdmin() {
@@ -121,7 +147,7 @@ public class AsistenciaController {
             fechasDeClase.add(a.getFecha());
         }
 
-        List alertasFaltas = new ArrayList<>();
+       List alertasFaltas = new ArrayList<>();
         for (Alumno al : todosAlumnos) {
             Set<LocalDate> diasAsistidos = new HashSet<>();
             for (Asistencia a : asistenciaRepository.findByAlumno(al)) {

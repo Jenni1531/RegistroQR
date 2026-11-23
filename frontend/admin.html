@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Administrador - Escáner de Asistencia QR</title>
+    <link href="vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
+    <link href="css/sb-admin-2.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+<body id="page-top">
+    <div id="wrapper">
+        <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="admin.html">
+                <div class="sidebar-brand-icon"><i class="fas fa-qrcode"></i></div>
+                <div class="sidebar-brand-text mx-3">Control QR</div>
+            </a>
+            <hr class="sidebar-divider my-0">
+            <li class="nav-item active"><a class="nav-link" href="admin.html"><i class="fas fa-fw fa-tachometer-alt"></i><span>Panel y Escáner</span></a></li>
+            <li class="nav-item"><a class="nav-link" href="registro-alumnos.html"><i class="fas fa-fw fa-user-plus"></i><span>Registro de Alumnos</span></a></li>
+            <li class="nav-item"><a class="nav-link" href="alertas.html"><i class="fas fa-fw fa-exclamation-triangle"></i><span>Alertas (+3 Faltas)</span></a></li>
+            <li class="nav-item"><a class="nav-link" href="escaner-movil.html" target="_blank"><i class="fas fa-fw fa-mobile-alt"></i><span>Modo Escáner Celular</span></a></li>
+            <hr class="sidebar-divider">
+            <div class="text-center px-3">
+                <button onclick="cerrarSesion()" class="btn btn-light btn-sm btn-block font-weight-bold text-primary">Cerrar Sesión</button>
+            </div>
+        </ul>
+
+        <div id="content-wrapper" class="d-flex flex-column">
+            <div id="content" class="p-4">
+                <div class="d-sm-flex align-items-center justify-content-between mb-4">
+                    <h1 class="h3 mb-0 text-gray-800">Panel Principal y Escáner QR</h1>
+                    <span class="badge badge-success p-2"><i class="fas fa-plug"></i> Escáner Activo</span>
+                </div>
+
+                <div class="row">
+                    <div class="col-xl-4 col-md-6 mb-4">
+                        <div class="card border-left-primary shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Alumnos</div>
+                                <div class="h3 mb-0 font-weight-bold text-gray-800" id="totalAlumnos">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-4 col-md-6 mb-4">
+                        <div class="card border-left-success shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Asistencias Hoy</div>
+                                <div class="h3 mb-0 font-weight-bold text-gray-800" id="asistieronHoy">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-4 col-md-6 mb-4">
+                        <div class="card border-left-danger shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Alertas (+3 Faltas)</div>
+                                <div class="h3 mb-0 font-weight-bold text-gray-800" id="totalAlertas">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow border-bottom-primary mb-4">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-barcode"></i> Terminal Lectora de Código QR</h6>
+                        <button id="btnCamara" onclick="toggleCamara()" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-video"></i> Activar Cámara Web
+                        </button>
+                    </div>
+                    <div class="card-body text-center">
+                        <div id="reader" style="width: 100%; max-width: 380px; margin: 0 auto 15px auto; display: none;"></div>
+                        <p class="text-muted small mb-2">Usa tu <strong>Escáner USB</strong>, escribe el código (ej. <code>QR-2026001</code>) o activa la cámara web:</p>
+                        <form id="formEscanear">
+                            <div class="input-group input-group-lg mb-3">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text bg-primary text-white"><i class="fas fa-qrcode"></i></span>
+                                </div>
+                                <input type="text" id="inputQr" class="form-control" placeholder="Esperando lectura del escáner QR..." autofocus autocomplete="off" required>
+                                <div class="input-group-append">
+                                    <button class="btn btn-primary font-weight-bold" type="submit">Marcar Asistencia</button>
+                                </div>
+                            </div>
+                        </form>
+                        <div id="alertaEscaneo" class="alert d-none text-left shadow-sm mt-3"></div>
+                    </div>
+                </div>
+
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-check-circle text-success"></i> Asistencias Marcadas Hoy</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>N° Control</th>
+                                        <th>Nombre del Alumno</th>
+                                        <th>Grupo</th>
+                                        <th>Hora</th>
+                                        <th>Registro</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaHoy"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "http://localhost:8080/api";
+        const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
+        if (!sesion || sesion.rol !== "ADMIN") {
+            window.location.href = "login.html";
+        }
+
+        const inputQr = document.getElementById("inputQr");
+        let pausado = false;
+
+        async function procesarCodigoQr(codigoQr) {
+            const alerta = document.getElementById("alertaEscaneo");
+            try {
+                const res = await fetch(`${API_BASE}/asistencias/escanear`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ codigoQr: codigoQr.trim() })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    alerta.className = "alert alert-success text-left shadow-sm mt-3";
+                    alerta.innerHTML = `
+                        <h5 class="font-weight-bold mb-1">✅ ${data.mensaje}</h5>
+                        <div><strong>Alumno:</strong> ${data.alumno} | <strong>N° Control:</strong> ${data.numeroControl}</div>
+                        <div><strong>Grupo:</strong> ${data.grupo} | <strong>Hora:</strong> ${data.hora}</div>`;
+                } else {
+                    alerta.className = "alert alert-danger text-left shadow-sm mt-3";
+                    alerta.innerHTML = `<strong>⚠️ ${data.mensaje}</strong>`;
+                }
+                alerta.classList.remove("d-none");
+                cargarDashboard();
+            } catch (err) {
+                alerta.className = "alert alert-danger mt-3";
+                alerta.textContent = "Error de conexión con Spring Boot (puerto 8080).";
+                alerta.classList.remove("d-none");
+            }
+            inputQr.value = "";
+            inputQr.focus();
+        }
+
+        document.getElementById("formEscanear").addEventListener("submit", (e) => {
+            e.preventDefault();
+            if (inputQr.value.trim() !== "") procesarCodigoQr(inputQr.value);
+        });
+
+        let html5QrCode = null;
+        let camaraActiva = false;
+        function toggleCamara() {
+            const visor = document.getElementById("reader");
+            const btn = document.getElementById("btnCamara");
+            if (!camaraActiva) {
+                visor.style.display = "block";
+                btn.innerHTML = '<i class="fas fa-stop"></i> Detener Cámara';
+                btn.className = "btn btn-sm btn-danger";
+                html5QrCode = new Html5Qrcode("reader");
+                html5QrCode.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 220, height: 220 } },
+                    (decodedText) => {
+                        if (pausado) return;
+                        pausado = true;
+                        procesarCodigoQr(decodedText);
+                        setTimeout(() => { pausado = false; }, 3000);
+                    }
+                );
+                camaraActiva = true;
+            } else {
+                html5QrCode.stop().then(() => {
+                    visor.style.display = "none";
+                    btn.innerHTML = '<i class="fas fa-video"></i> Activar Cámara Web';
+                    btn.className = "btn btn-sm btn-outline-primary";
+                    camaraActiva = false;
+                });
+            }
+        }
+
+        async function cargarDashboard() {
+            const res = await fetch(`${API_BASE}/asistencias/dashboard`);
+            const data = await res.json();
+            document.getElementById("totalAlumnos").textContent = data.totalAlumnosRegistrados;
+            document.getElementById("asistieronHoy").textContent = data.asistieronHoy;
+            document.getElementById("totalAlertas").textContent = data.totalAlertasFaltas;
+
+            const tbodyHoy = document.getElementById("tablaHoy");
+            tbodyHoy.innerHTML = data.registrosHoy.length === 0
+                ? `<tr><td colspan="5" class="text-center text-muted">Aún no se han escaneado códigos QR hoy.</td></tr>`
+                : data.registrosHoy.map(reg => `
+                    <tr>
+                        <td><strong>${reg.alumno.numeroControl}</strong></td>
+                        <td>${reg.alumno.nombre} ${reg.alumno.apellidos}</td>
+                        <td>${reg.alumno.grupo.nombreGrupo}</td>
+                        <td>${reg.horaEntrada}</td>
+                        <td><span class="badge badge-success px-2 py-1">${reg.estado}</span></td>
+                    </tr>`).join("");
+        }
+
+        function cerrarSesion() {
+            localStorage.removeItem("usuarioSesion");
+            window.location.href = "login.html";
+        }
+
+        cargarDashboard();
+    </script>
+</body>
+</html>

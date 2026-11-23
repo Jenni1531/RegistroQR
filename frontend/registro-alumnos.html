@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Alumnos - Control QR</title>
+    <link href="vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
+    <link href="css/sb-admin-2.min.css" rel="stylesheet">
+</head>
+<body id="page-top">
+    <div id="wrapper">
+        <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion">
+            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="admin.html">
+                <div class="sidebar-brand-icon"><i class="fas fa-qrcode"></i></div>
+                <div class="sidebar-brand-text mx-3">Control QR</div>
+            </a>
+            <hr class="sidebar-divider my-0">
+            <li class="nav-item"><a class="nav-link" href="admin.html"><i class="fas fa-fw fa-tachometer-alt"></i><span>Panel y Escáner</span></a></li>
+            <li class="nav-item active"><a class="nav-link" href="registro-alumnos.html"><i class="fas fa-fw fa-user-plus"></i><span>Registro de Alumnos</span></a></li>
+            <li class="nav-item"><a class="nav-link" href="alertas.html"><i class="fas fa-fw fa-exclamation-triangle"></i><span>Alertas (+3 Faltas)</span></a></li>
+            <li class="nav-item"><a class="nav-link" href="escaner-movil.html" target="_blank"><i class="fas fa-fw fa-mobile-alt"></i><span>Modo Escáner Celular</span></a></li>
+            <hr class="sidebar-divider">
+            <div class="text-center px-3">
+                <button onclick="cerrarSesion()" class="btn btn-light btn-sm btn-block font-weight-bold text-primary">Cerrar Sesión</button>
+            </div>
+        </ul>
+
+        <div id="content-wrapper" class="d-flex flex-column">
+            <div id="content" class="p-4">
+                <h1 class="h3 mb-4 text-gray-800">Alta y Padrón de Alumnos</h1>
+
+                <div class="row">
+                    <div class="col-lg-4 mb-4">
+                        <div class="card shadow border-left-success">
+                            <div class="card-header py-3">
+                                <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-user-plus"></i> Nuevo Alumno</h6>
+                            </div>
+                            <div class="card-body">
+                                <form id="formNuevoAlumno">
+                                    <div class="form-group">
+                                        <label class="small font-weight-bold">Nombre completo </label>
+                                        <input type="text" id="nombreNuevo" class="form-control" placeholder="Ej. Ana Sofía" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="small font-weight-bold">Semestre y Grupo</label>
+                                        <input type="text" id="grupoNuevo" class="form-control" value="1A" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-success btn-block font-weight-bold">Registrar Alumno</button>
+                                </form>
+                                <div id="alertaAlta" class="alert d-none mt-3 mb-0"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-8 mb-4">
+                        <div class="card shadow">
+                            <div class="card-header py-3">
+                                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-users"></i> Alumnos Registrados</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-hover">
+                                        <thead class="thead-light">
+                                            <tr>
+                                                <th>N° Control</th>
+                                                <th>Nombre Completo</th>
+                                                <th>Grupo</th>
+                                                <th>Código QR</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tablaAlumnos"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+       const API_BASE = `http://${window.location.hostname}:8080/api`;
+        const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
+        if (!sesion || sesion.rol !== "ADMIN") window.location.href = "login.html";
+
+        async function cargarAlumnos() {
+            const res = await fetch(`${API_BASE}/asistencias/dashboard`);
+            const data = await res.json();
+            const tbody = document.getElementById("tablaAlumnos");
+            tbody.innerHTML = data.listaAlumnos.map(al => `
+                <tr>
+                    <td><strong>${al.numeroControl}</strong></td>
+                    <td>${al.nombre} ${al.apellidos}</td>
+                    <td>${al.grupo.nombreGrupo}</td>
+                   <td>
+                        <a href="${API_BASE}/qr/${al.codigoQrToken}" target="_blank" class="btn btn-sm btn-primary">
+                            <i class="fas fa-qrcode"></i> Abrir QR
+                        </a>
+                        <button onclick="eliminarAlumno(${al.idAlumno}, '${al.nombre}')" class="btn btn-sm btn-danger ml-1" title="Eliminar alumno">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>`).join("");
+        }
+        async function eliminarAlumno(id, nombre) {
+            if (!confirm(`¿Seguro que deseas eliminar a ${nombre} y su historial de asistencias?`)) {
+                return;
+            }
+            const res = await fetch(`${API_BASE}/asistencias/alumnos/${id}`, {
+                method: "DELETE"
+            });
+            const data = await res.json();
+            if (res.ok) {
+                cargarAlumnos();
+            } else {
+                alert(data.mensaje || "No se pudo eliminar el alumno.");
+            }
+        }
+
+     document.getElementById("formNuevoAlumno").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const alerta = document.getElementById("alertaAlta");
+            const payload = {
+                nombre: document.getElementById("nombreNuevo").value.trim(),
+                grupo: document.getElementById("grupoNuevo").value.trim()
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/asistencias/alumnos`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                alerta.className = res.ok ? "alert alert-info mt-3 mb-0" : "alert alert-danger mt-3 mb-0";
+                alerta.textContent = data.mensaje || "Error en el servidor: verifica que reiniciaste Spring Boot.";
+                alerta.classList.remove("d-none");
+
+                if (res.ok) {
+                    e.target.reset();
+                    cargarAlumnos();
+                }
+            } catch (err) {
+                alerta.className = "alert alert-danger mt-3 mb-0";
+                alerta.textContent = "No se pudo conectar con Spring Boot (puerto 8080).";
+                alerta.classList.remove("d-none");
+            }
+        });
+
+        function cerrarSesion() {
+            localStorage.removeItem("usuarioSesion");
+            window.location.href = "login.html";
+        }
+
+        cargarAlumnos();
+    </script>
+</body>
+</html>
